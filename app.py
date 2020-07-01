@@ -71,6 +71,7 @@ def _random():
 
 @app.route("/hello")
 def hello():
+    logger.info("http_request", context="/hello")
     return jsonify({"context": "/hello", "time": datetime.datetime.now().isoformat()})
 
 
