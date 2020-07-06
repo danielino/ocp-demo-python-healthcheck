@@ -74,6 +74,17 @@ def hello():
     logger.info("http_request", context="/hello")
     return jsonify({"context": "/hello", "time": datetime.datetime.now().isoformat()})
 
+@app.route("/stress")
+def stress():
+    logger.info("http_request", context="/stress")
+    i = 0
+    c = 10
+    while i < (2 << 20): # 2097152
+        c ** i
+        i += 1
+    return jsonify({"context" : "/stress", result=i})
+        
+
 
 @app.route("/health/liveness")
 def liveness():
