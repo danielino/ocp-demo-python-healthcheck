@@ -82,7 +82,7 @@ def stress():
     while i < (2 << 20): # 2097152
         c ** i
         i += 1
-    return jsonify({"context" : "/stress", result=i})
+    return jsonify({"context" : "/stress", "result": i})
         
 
 
