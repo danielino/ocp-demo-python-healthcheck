@@ -1,3 +1,4 @@
 flask
+flask-redis
 structlog
 redis

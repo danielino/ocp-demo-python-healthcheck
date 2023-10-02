@@ -6,6 +6,7 @@ import logging
 import redis
 import random
 from flask import Flask, jsonify
+from flask_redis import FlaskRedis
 
 REDIS_HOST = os.environ.get("REDIS_SERVICE_HOST", "redis")
 REDIS_PORT = int(os.environ.get("REDIS_SERVICE_PORT", "6379"))
@@ -36,25 +37,26 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
     wrapper_class=structlog.stdlib.BoundLogger,
     cache_logger_on_first_use=True,
-    context_class=structlog.threadlocal.wrap_dict(dict),
 )
 
 logger = structlog.get_logger()
 
 # disable log message from flask
 logging.getLogger("werkzeug").setLevel(logging.ERROR)
-os.environ["WERKZEUG_RUN_MAIN"] = "true"
 
-
-def get_redis_connection():
-    if not REDIS_PASSWORD:
-        return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE)
-    return redis.Redis(
-        host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DATABASE, password=REDIS_PASSWORD
-    )
-
+REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DATABASE}"
 
 app = Flask(__name__)
+redis_client = FlaskRedis(app)
+
+def quicksort(arr):
+    if len(arr) <= 1:
+        return arr
+    pivot = arr[len(arr) // 2]
+    left = [x for x in arr if x < pivot]
+    middle = [x for x in arr if x == pivot]
+    right = [x for x in arr if x > pivot]
+    return quicksort(left) + middle + quicksort(right)
 
 
 @app.route("/")
@@ -74,14 +76,20 @@ def hello():
     logger.info("http_request", context="/hello")
     return jsonify({"context": "/hello", "time": datetime.datetime.now().isoformat()})
 
+
+@app.route("/quicksort/<string:params>")
+def quicksort_api(params: str):
+    r = quicksort([int(x) for x in params.split(",")])
+    return jsonify({"response": r})
+
 @app.route("/stress")
 def stress():
     logger.info("http_request", context="/stress")
     i = 0
     c = 10
     while i < (2 << 20): # 2097152
-        c ** i
         i += 1
+        var = (i // 100) ** c
     return jsonify({"context" : "/stress", "result": i})
         
 
@@ -95,17 +103,16 @@ def liveness():
 @app.route("/health/readiness")
 def readiness():
     try:
-        r = get_redis_connection()
-        r.ping()
-        redis_alive = True
+        redis_alive = redis_client.ping()
         logger.debug("readiness", status="ok")
         return jsonify({"status": "ok", "redis_alive": redis_alive}), 200
 
-    except:
+    except Exception as e:
+        logger.exception(e)
         redis_alive = False
     logger.error("readiness", status="ko")
-    return jsonify({"status": "ok", "redis_alive": redis_alive}), 500
+    return jsonify({"status": "ko", "redis_alive": redis_alive}), 500
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=9090, debug=True)
