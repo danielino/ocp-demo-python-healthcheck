@@ -47,6 +47,7 @@ logging.getLogger("werkzeug").setLevel(logging.ERROR)
 REDIS_URL = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DATABASE}"
 
 app = Flask(__name__)
+app.config["REDIS_URL"] = REDIS_URL
 redis_client = FlaskRedis(app)
 
 def quicksort(arr):
